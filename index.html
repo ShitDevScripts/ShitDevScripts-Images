@@ -31,16 +31,15 @@
   <div id="toast">URL copied!</div>
 
   <script>
-    // Auto-detect from GitHub Pages URL (username.github.io/repo)
-    const GITHUB_USER = window.location.hostname.split('.')[0];
-    const GITHUB_REPO = window.location.pathname.split('/').filter(Boolean)[0] || 'ShitDevScripts-Images';
-    const BRANCH      = 'main';
+    const GITHUB_USER = 'shitdevscripts';
+    const GITHUB_REPO = 'ShitDevScripts-Images';
+    const BRANCH = 'main';
+    const FOLDER = 'images';
 
     const IMAGE_EXT = /\.(png|jpg|jpeg|gif|webp|svg)$/i;
-    const RAW_BASE  = `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/${BRANCH}/`;
-    const API_BASE  = `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/`;
+    const RAW_BASE = `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/${BRANCH}/`;
+    const API_BASE = `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/`;
 
-    const FOLDER = 'images';
     const LOCAL_IMAGES = [
       'ab545e91-f90f-46ed-8db4-d7ae1542f774.png',
       'degamekroegbreed.png',
@@ -68,42 +67,50 @@
         card.className = 'card';
         card.title = 'Click to copy image URL';
         card.innerHTML = `<img src="${imgUrl}" alt="${file.name}" /><span>${file.name.replace(/\.[^.]+$/, '')}</span>`;
+
         card.addEventListener('click', () => {
-          navigator.clipboard.writeText(imgUrl).then(() => {
-            const toast = document.getElementById('toast');
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 2000);
-          }).catch(() => {
-            const toast = document.getElementById('toast');
-            toast.textContent = 'Copy failed';
-            toast.classList.add('show');
-            setTimeout(() => {
-              toast.textContent = 'URL copied!';
-              toast.classList.remove('show');
-            }, 2000);
-          });
+          navigator.clipboard.writeText(imgUrl)
+            .then(() => {
+              const toast = document.getElementById('toast');
+              toast.classList.add('show');
+              setTimeout(() => toast.classList.remove('show'), 2000);
+            })
+            .catch(() => {
+              const toast = document.getElementById('toast');
+              toast.textContent = 'Copy failed';
+              toast.classList.add('show');
+              setTimeout(() => {
+                toast.textContent = 'URL copied!';
+                toast.classList.remove('show');
+              }, 2000);
+            });
         });
+
         grid.appendChild(card);
       });
     }
 
     async function loadImages() {
-      const grid = document.getElementById('images-grid');
       try {
-        if (!GITHUB_USER || window.location.protocol === 'file:') {
+        if (window.location.protocol === 'file:') {
           renderImages(LOCAL_IMAGES.map(name => ({ name, download_url: buildRawImageUrl(name) })));
           return;
         }
 
-        const res  = await fetch(API_BASE + FOLDER);
+        const res = await fetch(API_BASE + FOLDER);
         if (!res.ok) throw new Error(`GitHub API returned ${res.status}`);
+
         const files = await res.json();
         renderImages(files.filter(file => file.type === 'file').map(file => ({
           ...file,
           download_url: file.download_url || buildRawImageUrl(file.name)
         })));
-      } catch (e) {
+      } catch (error) {
         renderImages(LOCAL_IMAGES.map(name => ({ name, download_url: buildRawImageUrl(name) })));
+      }
+    }
+
+    loadImages();
 
     document.getElementById('search').addEventListener('input', function () {
       const query = this.value.trim().toLowerCase();
