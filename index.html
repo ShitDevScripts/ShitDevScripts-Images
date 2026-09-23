@@ -18,28 +18,10 @@
 
   <main>
 
-    <!-- ASSETS -->
-    <section id="assets">
-      <h2>Assets</h2>
-      <div class="grid" id="assets-grid">
-        <!-- Drop images in images/assets/ and add them here -->
-        <p class="empty">No assets yet.</p>
-      </div>
-    </section>
-
-    <!-- VIP VEHICLES -->
-    <section id="vehicles">
-      <h2>VIP Vehicles</h2>
-      <div class="grid" id="vehicles-grid">
-        <!-- Drop images in images/vip vehicles/ and add them here -->
-        <p class="empty">No vehicles yet.</p>
-      </div>
-    </section>
-
-    <!-- VIP WEAPONS -->
-    <section id="weapons">
-      <h2>VIP Weapons</h2>
-      <div class="grid" id="weapons-grid">
+    <section id="images">
+      <h2>Images</h2>
+      <div class="grid" id="images-grid">
+        <!-- Add images directly to images/ -->
         <p class="empty loading">Loading...</p>
       </div>
     </section>
@@ -58,46 +40,58 @@
     const RAW_BASE  = `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/${BRANCH}/`;
     const API_BASE  = `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/`;
 
-    const SECTIONS = [
-      { folder: 'images/assets',       gridId: 'assets-grid'   },
-      { folder: 'images/vip vehicles', gridId: 'vehicles-grid' },
-      { folder: 'images/vip weapons',  gridId: 'weapons-grid'  },
+    const FOLDER = 'images';
+    const LOCAL_IMAGES = [
+      'ab545e91-f90f-46ed-8db4-d7ae1542f774.png',
+      'degamekroegbreed.png',
+      'eclipsiacoin.png'
     ];
 
-    async function loadSection({ folder, gridId }) {
-      const grid = document.getElementById(gridId);
+    function renderImages(files) {
+      const grid = document.getElementById('images-grid');
+      const images = files.filter(file => IMAGE_EXT.test(file.name));
+
+      grid.innerHTML = '';
+
+      if (images.length === 0) {
+        grid.innerHTML = '<p class="empty">No images yet.</p>';
+        return;
+      }
+
+      images.forEach(file => {
+        const imgUrl = file.download_url || `${FOLDER}/${file.name}`;
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `<img src="${imgUrl}" alt="${file.name}" /><span>${file.name.replace(/\.[^.]+$/, '')}</span>`;
+        card.addEventListener('click', () => {
+          navigator.clipboard.writeText(imgUrl).then(() => {
+            const toast = document.getElementById('toast');
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+          });
+        });
+        grid.appendChild(card);
+      });
+    }
+
+    async function loadImages() {
+      const grid = document.getElementById('images-grid');
       try {
-        const res  = await fetch(API_BASE + encodeURIComponent(folder).replace(/%2F/g, '/'));
-        const files = await res.json();
-        const images = files.filter(f => f.type === 'file' && IMAGE_EXT.test(f.name));
-
-        grid.innerHTML = '';
-
-        if (images.length === 0) {
-          grid.innerHTML = '<p class="empty">No images yet.</p>';
+        if (!GITHUB_USER || window.location.protocol === 'file:') {
+          renderImages(LOCAL_IMAGES.map(name => ({ name })));
           return;
         }
 
-        images.forEach(file => {
-          const imgUrl = RAW_BASE + folder + '/' + file.name;
-          const card = document.createElement('div');
-          card.className = 'card';
-          card.innerHTML = `<img src="${imgUrl}" alt="${file.name}" /><span>${file.name.replace(/\.[^.]+$/, '')}</span>`;
-          card.addEventListener('click', () => {
-            navigator.clipboard.writeText(imgUrl).then(() => {
-              const toast = document.getElementById('toast');
-              toast.classList.add('show');
-              setTimeout(() => toast.classList.remove('show'), 2000);
-            });
-          });
-          grid.appendChild(card);
-        });
+        const res  = await fetch(API_BASE + FOLDER);
+        if (!res.ok) throw new Error(`GitHub API returned ${res.status}`);
+        const files = await res.json();
+        renderImages(files.filter(file => file.type === 'file'));
       } catch (e) {
-        grid.innerHTML = '<p class="empty">No images found.</p>';
+        renderImages(LOCAL_IMAGES.map(name => ({ name })));
       }
     }
 
-    SECTIONS.forEach(loadSection);
+    loadImages();
 
     document.getElementById('search').addEventListener('input', function () {
       const query = this.value.trim().toLowerCase();
