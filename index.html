@@ -33,7 +33,7 @@
   <script>
     // Auto-detect from GitHub Pages URL (username.github.io/repo)
     const GITHUB_USER = window.location.hostname.split('.')[0];
-    const GITHUB_REPO = window.location.pathname.split('/').filter(Boolean)[0] || 'eclipsia-images';
+    const GITHUB_REPO = window.location.pathname.split('/').filter(Boolean)[0] || 'ShitDevScripts-Images';
     const BRANCH      = 'main';
 
     const IMAGE_EXT = /\.(png|jpg|jpeg|gif|webp|svg)$/i;
@@ -47,6 +47,10 @@
       'eclipsiacoin.png'
     ];
 
+    function buildRawImageUrl(fileName) {
+      return `${RAW_BASE}${FOLDER}/${fileName}`;
+    }
+
     function renderImages(files) {
       const grid = document.getElementById('images-grid');
       const images = files.filter(file => IMAGE_EXT.test(file.name));
@@ -59,15 +63,24 @@
       }
 
       images.forEach(file => {
-        const imgUrl = file.download_url || `${FOLDER}/${file.name}`;
+        const imgUrl = file.download_url || buildRawImageUrl(file.name);
         const card = document.createElement('div');
         card.className = 'card';
+        card.title = 'Click to copy image URL';
         card.innerHTML = `<img src="${imgUrl}" alt="${file.name}" /><span>${file.name.replace(/\.[^.]+$/, '')}</span>`;
         card.addEventListener('click', () => {
           navigator.clipboard.writeText(imgUrl).then(() => {
             const toast = document.getElementById('toast');
             toast.classList.add('show');
             setTimeout(() => toast.classList.remove('show'), 2000);
+          }).catch(() => {
+            const toast = document.getElementById('toast');
+            toast.textContent = 'Copy failed';
+            toast.classList.add('show');
+            setTimeout(() => {
+              toast.textContent = 'URL copied!';
+              toast.classList.remove('show');
+            }, 2000);
           });
         });
         grid.appendChild(card);
@@ -78,20 +91,19 @@
       const grid = document.getElementById('images-grid');
       try {
         if (!GITHUB_USER || window.location.protocol === 'file:') {
-          renderImages(LOCAL_IMAGES.map(name => ({ name })));
+          renderImages(LOCAL_IMAGES.map(name => ({ name, download_url: buildRawImageUrl(name) })));
           return;
         }
 
         const res  = await fetch(API_BASE + FOLDER);
         if (!res.ok) throw new Error(`GitHub API returned ${res.status}`);
         const files = await res.json();
-        renderImages(files.filter(file => file.type === 'file'));
+        renderImages(files.filter(file => file.type === 'file').map(file => ({
+          ...file,
+          download_url: file.download_url || buildRawImageUrl(file.name)
+        })));
       } catch (e) {
-        renderImages(LOCAL_IMAGES.map(name => ({ name })));
-      }
-    }
-
-    loadImages();
+        renderImages(LOCAL_IMAGES.map(name => ({ name, download_url: buildRawImageUrl(name) })));
 
     document.getElementById('search').addEventListener('input', function () {
       const query = this.value.trim().toLowerCase();
